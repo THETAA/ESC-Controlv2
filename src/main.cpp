@@ -49,8 +49,8 @@ int LightGreen01 = 5;
 int LightGreen02 = 7;
 
 // Motor Settings
-int Neutral = 900; // µSeconds
-int Full_Throttle = 2000; // µSeconds
+int Neutral = 900; 			// µSeconds
+int Full_Throttle = 2000; 	// µSeconds
 
 // Timings
 int PulseLenght = 2500;
@@ -117,13 +117,6 @@ void MotorControl(int M1, int M2, int M3, int M4) {
 }
 
 void ESCcalibrate() {
-	/*
-	 cout << "[!] Calibrating..." << endl;
-	 MotorControl(0, 0, 0, 0);
-	 sleep(30);
-	 */
-
-	//Alternative (4 seconds)
 	cout << "[!] Calibrating..." << endl;
 	MotorControl(0, 0, 0, 0);
 	sleep(30);
@@ -182,7 +175,6 @@ void* ESCcontrol(void *) {
 	ESCcalibrate();
 	cout << "[!] ESC working" << endl;
 
-	// UDP Setup
 	struct sockaddr_in my_addr, cli_addr;
 	int sockfd;
 	socklen_t slen = sizeof(cli_addr);
@@ -201,7 +193,6 @@ void* ESCcontrol(void *) {
 
 	while (1) {
 		recvfrom(sockfd, buf, BUFLEN, 0, (struct sockaddr*) &cli_addr, &slen);
-
 		//200200100200
 
 		char a0[10];
@@ -225,10 +216,10 @@ void* ESCcontrol(void *) {
 		a3[1] = buf[10];
 		a3[2] = buf[11];
 
-		int ia0 = atoi(a0) - 200; // Roll
-		int ia1 = atoi(a1) - 200; // Tend
-		int ia2 = atoi(a2); // Throttle
-		int ia3 = atoi(a3) - 200; // Swing
+		int ia0 = atoi(a0) - 200; 	// Roll
+		int ia1 = atoi(a1) - 200; 	// Tend
+		int ia2 = atoi(a2); 		// Throttle
+		int ia3 = atoi(a3) - 200; 	// Swing
 
 		Roll(ia0);
 		Tend(ia1);
