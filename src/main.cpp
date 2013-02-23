@@ -49,7 +49,7 @@ int LightGreen01 = 5;
 int LightGreen02 = 7;
 
 // Motor Settings
-int Neutral = 900; 			// µSeconds
+int Neutral = 900;			// µSeconds
 int Full_Throttle = 2000; 	// µSeconds
 
 // Timings
