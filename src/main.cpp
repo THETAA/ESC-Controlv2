@@ -10,10 +10,30 @@
 #include <sys/socket.h>
 #include <string.h>
 
-#define BUFLEN 512	// Buffer Length
+#define BUFLEN 100	// Buffer Length
 #define PORT 777	// UDP Port
-
 using namespace std;
+
+// Offsets
+int O0 = 0;
+int O1 = -21;
+int O2 = -16;
+int O3 = -1;
+
+int GlobalOffset = 5;
+
+int RollOffset0 = 0;
+int RollOffset1 = 0;
+int RollOffset2 = 0;
+int RollOffset3 = 0;
+
+int TendOffset0 = 0;
+int TendOffset1 = 0;
+int TendOffset2 = 0;
+int TendOffset3 = 0;
+
+int TendAngle = 0;
+int RollAngle = 0;
 
 // Motors
 int M01 = 0;
@@ -29,8 +49,8 @@ int LightGreen01 = 5;
 int LightGreen02 = 7;
 
 // Motor Settings
-int Neutral = 800;			// µSeconds
-int Full_Throttle = 1900;	// µSeconds
+int Neutral = 900; // µSeconds
+int Full_Throttle = 2000; // µSeconds
 
 // Timings
 int PulseLenght = 2500;
@@ -47,6 +67,11 @@ void setup() {
 	pinMode(1, OUTPUT);
 	pinMode(2, OUTPUT);
 	pinMode(3, OUTPUT);
+
+	pinMode(4, OUTPUT);
+	pinMode(5, OUTPUT);
+	pinMode(6, OUTPUT);
+	pinMode(7, OUTPUT);
 }
 
 void MotorDrive(int Motor) {
@@ -92,24 +117,68 @@ void MotorControl(int M1, int M2, int M3, int M4) {
 }
 
 void ESCcalibrate() {
+	/*
+	 cout << "[!] Calibrating..." << endl;
+	 MotorControl(0, 0, 0, 0);
+	 sleep(30);
+	 */
+
+	//Alternative (4 seconds)
 	cout << "[!] Calibrating..." << endl;
 	MotorControl(0, 0, 0, 0);
 	sleep(30);
+	cout << "[!] Calibrated!" << endl;
+}
 
-	/* Alternative (4 seconds)
-	 *
-	 * cout << "[!] Calibrating..." << endl;
-	 * MotorControl(100,100,100,100);
-	 * sleep(3);
-	 * MotorControl(0,0,0,0);
-	 * sleep(1);
-	 * cout << "[!] Calibrated!" << endl;
-	 *
-	 */
+int ThrottleCalc(int Value) {
+	int tmp = ((Value - 100) / 2) + GlobalOffset;
+	return tmp;
+}
+
+void Tend(int value) {
+	if (value > 0) {
+		TendOffset0 = 0;
+		TendOffset2 = 0;
+
+		TendOffset1 = value / 10;
+		TendOffset3 = value / 10;
+	} else if (value < 0) {
+		TendOffset1 = 0;
+		TendOffset3 = 0;
+
+		TendOffset0 = value / 10;
+		TendOffset2 = value / 10;
+	} else if (value == 0) {
+		TendOffset0 = 0;
+		TendOffset1 = 0;
+		TendOffset2 = 0;
+		TendOffset3 = 0;
+	}
+}
+
+void Roll(int value) {
+	if (value > 0) {
+		TendOffset0 = 0;
+		TendOffset1 = 0;
+
+		TendOffset2 = value / 10;
+		TendOffset3 = value / 10;
+	} else if (value < 0) {
+		TendOffset2 = 0;
+		TendOffset3 = 0;
+
+		TendOffset0 = value / 10;
+		TendOffset1 = value / 10;
+	} else if (value == 0) {
+		TendOffset0 = 0;
+		TendOffset1 = 0;
+		TendOffset2 = 0;
+		TendOffset3 = 0;
+	}
 }
 
 void* ESCcontrol(void *) {
-	cout << "[!] Standby" << endl;
+	sleep(2);
 	ESCcalibrate();
 	cout << "[!] ESC working" << endl;
 
@@ -133,23 +202,43 @@ void* ESCcontrol(void *) {
 	while (1) {
 		recvfrom(sockfd, buf, BUFLEN, 0, (struct sockaddr*) &cli_addr, &slen);
 
-		switch (buf[0]) {
-		case 48:
-			MotorControl(0, 0, 0, 0);
-			break;
-		case 49:
-			MotorControl(25, 25, 25, 25);
-			break;
-		case 50:
-			MotorControl(50, 50, 50, 50);
-			break;
-		case 51:
-			MotorControl(75, 75, 75, 75);
-			break;
-		case 52:
-			MotorControl(100, 100, 100, 100);
-			break;
-		}
+		//200200100200
+
+		char a0[10];
+		char a1[10];
+		char a2[10];
+		char a3[10];
+
+		a0[0] = buf[0];
+		a0[1] = buf[1];
+		a0[2] = buf[2];
+
+		a1[0] = buf[3];
+		a1[1] = buf[4];
+		a1[2] = buf[5];
+
+		a2[0] = buf[6];
+		a2[1] = buf[7];
+		a2[2] = buf[8];
+
+		a3[0] = buf[9];
+		a3[1] = buf[10];
+		a3[2] = buf[11];
+
+		int ia0 = atoi(a0) - 200; // Roll
+		int ia1 = atoi(a1) - 200; // Tend
+		int ia2 = atoi(a2); // Throttle
+		int ia3 = atoi(a3) - 200; // Swing
+
+		Roll(ia0);
+		Tend(ia1);
+
+		MotorControl(ThrottleCalc(ia2) + O0 + TendOffset0 + RollOffset0,
+				ThrottleCalc(ia2) + O1 + TendOffset1 + RollOffset1,
+				ThrottleCalc(ia2) + O2 + TendOffset2 + RollOffset2,
+				ThrottleCalc(ia2) + O3 + TendOffset3 + RollOffset3);
+
+		usleep(50000);
 	}
 
 	return 0;
@@ -162,14 +251,14 @@ void* NavLights(void*) {
 		digitalWrite(LightGreen01, 1);
 		digitalWrite(LightGreen02, 1);
 
-		usleep(200000); // 200ms on
+		usleep(50000); // 50ms on
 
 		digitalWrite(LightRed01, 0);
 		digitalWrite(LightRed02, 0);
 		digitalWrite(LightGreen01, 0);
 		digitalWrite(LightGreen02, 0);
 
-		usleep(100000); // 100ms off
+		usleep(200000); // 200ms off
 	}
 	return 0;
 }
